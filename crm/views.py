@@ -1,6 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
 from django.shortcuts import redirect
+from django.db.models import Sum
+from _decimal import Decimal
 from .models import *
 from .forms import *
 
@@ -76,3 +78,74 @@ def service_edit(request, pk):
     else:
         form = ServiceForm(instance=service)
     return render(request, 'crm/service_edit.html', {'form': form})
+
+@login_required
+def service_delete(request, pk):
+    service = get_object_or_404(service, pk=pk)
+    service.delete()
+    return redirect('crm:service_list')
+
+@login_required
+def summary(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    services = Service.objects.filter(cust_name=pk)
+    products = Product.objects.filter(cust_name=pk)
+    sum_service_charge = \
+        Service.objects.filter(cust_name=pk).aggregate(Sum('service_charge'))
+    sum_product_charge = \
+        Product.objects.filter(cust_name=pk).aggregate(Sum('charge'))
+
+    # if no product or service records exist for the customer,
+    # change the ‘None’ returned by the query to 0.00
+    sum = sum_product_charge.get("charge__sum")
+    if sum== None:
+        sum_product_charge = {'charge__sum' : Decimal('0')}
+    sum = sum_service_charge.get("service_charge__sum")
+    if sum== None:
+        sum_service_charge = {'service_charge__sum' : Decimal('0')}
+
+    return render(request, 'crm/summary.html', {'customer': customer,
+                              'products': products,
+                              'services': services,
+                              'sum_service_charge': sum_service_charge,
+                              'sum_product_charge': sum_product_charge,})
+@login_required
+def product_edit(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    if request.method == "POST":
+        form = ProductForm(request.POST, instance=product)
+        if form.is_valid():
+            product = form.save()
+            product.updated_date = timezone.now()
+            product.save()
+            products = product.objects.filter(created_date__lte=timezone.now())
+            return render(request, 'crm/service_list.html', {'products': products})
+    else:
+        form = ProductForm(instance=product)
+    return render(request, 'crm/product_edit.html', {'form': form})
+@login_required
+def product_new(request):
+    if request.method == "POST":
+        form = ProductForm(request.POST)
+        if form.is_valid():
+            product = form.save(commit=False)
+            product.created_date = timezone.now()
+            product.save()
+            products = Project.objects.filter(created_date__lte=timezone.now())
+            return render(request, 'crm/product_list.html',
+                          {'products': products})
+    else:
+        form = ProductForm()
+
+    return render(request, 'crm/product_new.html', {'form': form})
+
+@login_required
+def product_list(request):
+    products = Product.objects.filter(created_date__lte=timezone.now())
+    return render(request, 'crm/product_list.html', {'products': products})
+
+@login_required
+def product_delete(request, pk):
+    product = get_object_or_404(product, pk=pk)
+    product.delete()
+    return redirect('crm:product_list')
