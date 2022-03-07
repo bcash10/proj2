@@ -81,7 +81,7 @@ def service_edit(request, pk):
 
 @login_required
 def service_delete(request, pk):
-    service = get_object_or_404(service, pk=pk)
+    service = get_object_or_404(Service, pk=pk)
     service.delete()
     return redirect('crm:service_list')
 
@@ -118,8 +118,8 @@ def product_edit(request, pk):
             product = form.save()
             product.updated_date = timezone.now()
             product.save()
-            products = product.objects.filter(created_date__lte=timezone.now())
-            return render(request, 'crm/service_list.html', {'products': products})
+            products = Product.objects.filter(created_date__lte=timezone.now())
+            return render(request, 'crm/product_list.html', {'products': products})
     else:
         form = ProductForm(instance=product)
     return render(request, 'crm/product_edit.html', {'form': form})
@@ -131,7 +131,7 @@ def product_new(request):
             product = form.save(commit=False)
             product.created_date = timezone.now()
             product.save()
-            products = Project.objects.filter(created_date__lte=timezone.now())
+            products = Product.objects.filter(created_date__lte=timezone.now())
             return render(request, 'crm/product_list.html',
                           {'products': products})
     else:
@@ -146,6 +146,6 @@ def product_list(request):
 
 @login_required
 def product_delete(request, pk):
-    product = get_object_or_404(product, pk=pk)
+    product = get_object_or_404(Product, pk=pk)
     product.delete()
     return redirect('crm:product_list')
